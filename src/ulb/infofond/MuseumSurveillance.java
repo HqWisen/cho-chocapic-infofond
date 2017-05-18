@@ -19,7 +19,7 @@ public class MuseumSurveillance {
     private final static Character OBSTACLE = '*';
 
     static {
-        log.setLevel(Level.WARNING);
+        log.setLevel(Level.INFO);
     }
 
     private static Character[] parseLine(String line) {
@@ -78,8 +78,9 @@ public class MuseumSurveillance {
         initSizeAttribute();
         buildEmptyElements();
         this.model = new Model("MuseumSurveillance");
-/*
+
         initWatcherVars();
+/*
         initLaserVars();
         initObstacleVars();
 */
@@ -120,18 +121,21 @@ public class MuseumSurveillance {
      * i.e. the elements where a laser can be put to monitor this empty element.
      */
     private void initWatcherVars() {
+        log.info("Building Watcher variables");
         this.watcherVars = new HashMap<>();
         for (Integer element : getEmptyElements()) {
             this.watcherVars.put(element, buildElementDomain(element));
         }
+        log.info("Watcher variables build with their respective domain");
     }
 
     /**
      * This function build to domain for an element.
      * The domain correspond to the set of elements that have the same row
      * and the same column that the element itself. Each element of the
-     * set must also be accessible by the element (from the parameter) without
-     * any obstacle.
+     * set must also be accessible by the element (given as parameter) without
+     * any obstacle. The set also contain the element itself since if the element
+     * is considered as a laser, it is automatically considered as self-monitored.
      * REMINDER: element is just a value that as row and col values
      * (using method {@link MuseumSurveillance#getRow(int)} or {@link MuseumSurveillance#getCol(int)})
      * @param element domain is build based of the value of this element, it should NOT be an obstacle element
@@ -144,7 +148,8 @@ public class MuseumSurveillance {
         all.addAll(getSouthElements(element));
         all.addAll(getWestElements(element));
         all.addAll(getEastElements(element));
-        // all.add(element);
+        // adding the element itself since if it is a laser, it should be count as as already monitored!
+        all.add(element);
         // TODO to test that this returns an array of the list values
         int[] values  = all.stream().mapToInt(i->i).toArray();
         return model.intVar(String.format("(%d, %d)", getRow(element), getCol(element)), values);
