@@ -93,32 +93,18 @@ public class MuseumSurveillance {
         int[] coeffs = new int[laserVars.length];
         Arrays.fill(coeffs, 0, laserVars.length, 1);
         model.scalar(laserVars, coeffs, "=", numberOfLasersVar).post();
+
+
         Solver solver = model.getSolver();
-/*
         model.setObjective(false, numberOfLasersVar);
         while(solver.solve()){
-*/
-/*
-            System.out.println(solver.getSolutionCount());
-            System.out.println(numberOfLasersVar.getValue());
-            for ( int i=0; i < laserVars.length; i++){
-                System.out.println(laserVars[i].getBooleanValue());
+            Set<String> set = new HashSet<>();
+            // solver.showShortStatistics();
+            for(Integer i : watcherVars.keySet()){
+                set.add(Arrays.toString(getCoordinates(watcherVars.get(i).getValue())));
             }
-*//*
-
+            System.out.println(set);
         }
-*/
-/*
-        Solution best = solver.findOptimalSolution(numberOfLasersVar, false);
-        System.out.println(numberOfLasersVar.getValue());
-        for (Integer i : watcherVars.keySet()){
-            System.out.println(watcherVars.get(i).getValue());
-        }
-        for ( int i=0; i < laserVars.length; i++){
-            System.out.println(laserVars[i].getBooleanValue());
-        }
-*/
-
     }
 
     /**
