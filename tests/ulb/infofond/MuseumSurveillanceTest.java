@@ -52,6 +52,7 @@ class MuseumSurveillanceTest {
         assertEquals(8, solver.getCol(8));
         assertEquals(1, solver.getCol(10));
         assertEquals(4, solver.getCol(31));
+        assertEquals(4, solver.getCol(40));
     }
 
     @Test
@@ -69,7 +70,11 @@ class MuseumSurveillanceTest {
 
     @Test
     void getCoordinates() {
-        fail("not implemented");
+    }
+
+    @Test
+    void getNumberOfElements(){
+        assertEquals(63, solver.getNumberOfElements());
     }
 
     @Test

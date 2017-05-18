@@ -1,7 +1,11 @@
 package ulb.infofond;
 
 import org.chocosolver.solver.Model;
+import org.chocosolver.solver.Solution;
+import org.chocosolver.solver.Solver;
+import org.chocosolver.solver.variables.BoolVar;
 import org.chocosolver.solver.variables.IntVar;
+import org.chocosolver.util.tools.ArrayUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -68,8 +72,9 @@ public class MuseumSurveillance {
     private Character[][] map;
     private int numberOfRows, numberOfCols;
     private Model model;
-    private IntVar laserVars, obstacleVars;
+    private BoolVar[] laserVars;
     private Map<Integer, IntVar> watcherVars;
+    private IntVar numberOfLasersVar;
     private List<Integer> emptyElements;
 
     public MuseumSurveillance(String filename) {
@@ -78,11 +83,40 @@ public class MuseumSurveillance {
         initSizeAttribute();
         buildEmptyElements();
         this.model = new Model("MuseumSurveillance");
-
-        initWatcherVars();
+        this.watcherVars = initWatcherVars();
+        this.laserVars = model.boolVarArray("Lasers", getNumberOfElements());
+        this.numberOfLasersVar = model.intVar("Lasers", 0, getNumberOfElements(), true);
+        for (Integer i : watcherVars.keySet()) {
+            // log.info("Creating constraint for watcherVar = " + watcherVars.get(i));
+            model.element(model.intVar(1), laserVars, watcherVars.get(i), 1).post();
+        }
+        int[] coeffs = new int[laserVars.length];
+        Arrays.fill(coeffs, 0, laserVars.length, 1);
+        model.scalar(laserVars, coeffs, "=", numberOfLasersVar).post();
+        Solver solver = model.getSolver();
 /*
-        initLaserVars();
-        initObstacleVars();
+        model.setObjective(false, numberOfLasersVar);
+        while(solver.solve()){
+*/
+/*
+            System.out.println(solver.getSolutionCount());
+            System.out.println(numberOfLasersVar.getValue());
+            for ( int i=0; i < laserVars.length; i++){
+                System.out.println(laserVars[i].getBooleanValue());
+            }
+*//*
+
+        }
+*/
+/*
+        Solution best = solver.findOptimalSolution(numberOfLasersVar, false);
+        System.out.println(numberOfLasersVar.getValue());
+        for (Integer i : watcherVars.keySet()){
+            System.out.println(watcherVars.get(i).getValue());
+        }
+        for ( int i=0; i < laserVars.length; i++){
+            System.out.println(laserVars[i].getBooleanValue());
+        }
 */
 
     }
@@ -105,7 +139,6 @@ public class MuseumSurveillance {
     }
 
     /**
-     *
      * @param i row to check
      * @param j col to check
      * @return true if there is NO obstacle, false otherwise
@@ -120,13 +153,14 @@ public class MuseumSurveillance {
      * The domain correspond of all elements that can watch this empty element
      * i.e. the elements where a laser can be put to monitor this empty element.
      */
-    private void initWatcherVars() {
+    private Map<Integer, IntVar> initWatcherVars() {
         log.info("Building Watcher variables");
-        this.watcherVars = new HashMap<>();
+        Map<Integer, IntVar> watcherVars = new HashMap<>();
         for (Integer element : getEmptyElements()) {
-            this.watcherVars.put(element, buildElementDomain(element));
+            watcherVars.put(element, buildElementDomain(element));
         }
         log.info("Watcher variables build with their respective domain");
+        return watcherVars;
     }
 
     /**
@@ -138,6 +172,7 @@ public class MuseumSurveillance {
      * is considered as a laser, it is automatically considered as self-monitored.
      * REMINDER: element is just a value that as row and col values
      * (using method {@link MuseumSurveillance#getRow(int)} or {@link MuseumSurveillance#getCol(int)})
+     *
      * @param element domain is build based of the value of this element, it should NOT be an obstacle element
      * @return a model integer variables that as a domain define as the set of element
      * that respect the condition below.
@@ -151,74 +186,66 @@ public class MuseumSurveillance {
         // adding the element itself since if it is a laser, it should be count as as already monitored!
         all.add(element);
         // TODO to test that this returns an array of the list values
-        int[] values  = all.stream().mapToInt(i->i).toArray();
+        int[] values = all.stream().mapToInt(i -> i).toArray();
         return model.intVar(String.format("(%d, %d)", getRow(element), getCol(element)), values);
     }
 
-    public List<Integer> getNorthElements(Integer element){
+    public List<Integer> getNorthElements(Integer element) {
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> norths = new ArrayList<>();
-        for(int k = i - 1; k > 0; k--){
-            if(isEmpty(k, j)) {
+        for (int k = i - 1; k > 0; k--) {
+            if (isEmpty(k, j)) {
                 norths.add(getElement(k, j));
-            }else{
+            } else {
                 break;
             }
         }
         return norths;
     }
 
-    public List<Integer> getSouthElements(Integer element){
+    public List<Integer> getSouthElements(Integer element) {
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> souths = new ArrayList<>();
-        for(int k = i+1; k < numberOfRows; k++){
-            if(isEmpty(k, j)) {
+        for (int k = i + 1; k < numberOfRows; k++) {
+            if (isEmpty(k, j)) {
                 souths.add(getElement(k, j));
-            }else{
+            } else {
                 break;
             }
         }
         return souths;
     }
 
-    public List<Integer> getWestElements(Integer element){
+    public List<Integer> getWestElements(Integer element) {
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> wests = new ArrayList<>();
-        for(int k = j - 1; k > 0; k--){
-            if(isEmpty(i, k)) {
+        for (int k = j - 1; k > 0; k--) {
+            if (isEmpty(i, k)) {
                 wests.add(getElement(i, k));
-            }else{
+            } else {
                 break;
             }
         }
         return wests;
     }
 
-    public List<Integer> getEastElements(Integer element){
+    public List<Integer> getEastElements(Integer element) {
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> easts = new ArrayList<>();
-        for(int k = j+1; k < numberOfCols; k++){
-            if(isEmpty(i, k)) {
+        for (int k = j + 1; k < numberOfCols; k++) {
+            if (isEmpty(i, k)) {
                 easts.add(getElement(i, k));
-            }else{
+            } else {
                 break;
             }
         }
         return easts;
     }
 
-
-    private void initLaserVars() {
-
-    }
-
-    private void initObstacleVars() {
-
-    }
 
     private void initSizeAttribute() {
         this.numberOfRows = this.map.length;
@@ -237,8 +264,10 @@ public class MuseumSurveillance {
 
     // TODO check that the getCol and getRow methods work correctly (units tests ?)
     // TODO build try catch if element is not between 1 and rows*cols
+
     /**
      * element must be between 1 and rows*cols
+     *
      * @param element
      * @return the column value corresponding to the element
      */
@@ -251,6 +280,7 @@ public class MuseumSurveillance {
 
     /**
      * element must be between 1 and rows*cols
+     *
      * @param element
      * @return the row value corresponding to the element
      */
@@ -267,17 +297,21 @@ public class MuseumSurveillance {
         return i * numberOfCols + j;
     }
 
+    public int getNumberOfElements() {
+        return numberOfRows * numberOfCols;
+    }
+
     public Integer[] getCoordinates(int element) {
         return new Integer[]{getRow(element), getCol(element)};
     }
 
     /**
-     *
      * @return all empty elements (with no obstacle) of the map
      */
-    public List<Integer> getEmptyElements(){
+    public List<Integer> getEmptyElements() {
         return this.emptyElements;
     }
+
     public static void main(String[] args) {
         String filename = "input/museum.txt";
         MuseumSurveillance solver = new MuseumSurveillance(filename);
