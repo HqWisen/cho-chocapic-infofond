@@ -19,7 +19,7 @@ public class MuseumSurveillance {
     private final static Character OBSTACLE = '*';
 
     static {
-        log.setLevel(Level.INFO);
+        log.setLevel(Level.WARNING);
     }
 
     private static Character[] parseLine(String line) {
@@ -78,9 +78,11 @@ public class MuseumSurveillance {
         initSizeAttribute();
         buildEmptyElements();
         this.model = new Model("MuseumSurveillance");
+/*
         initWatcherVars();
         initLaserVars();
         initObstacleVars();
+*/
 
     }
 
@@ -107,7 +109,7 @@ public class MuseumSurveillance {
      * @param j col to check
      * @return true if there is NO obstacle, false otherwise
      */
-    private boolean isEmpty(int i, int j) {
+    public boolean isEmpty(int i, int j) {
         return map[i][j] != OBSTACLE;
     }
 
@@ -148,11 +150,11 @@ public class MuseumSurveillance {
         return model.intVar(String.format("(%d, %d)", getRow(element), getCol(element)), values);
     }
 
-    private List<Integer> getNorthElements(Integer element){
+    public List<Integer> getNorthElements(Integer element){
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> norths = new ArrayList<>();
-        for(int k = 0; k < i; k++){
+        for(int k = i - 1; k > 0; k--){
             if(isEmpty(k, j)) {
                 norths.add(getElement(k, j));
             }else{
@@ -162,7 +164,7 @@ public class MuseumSurveillance {
         return norths;
     }
 
-    private List<Integer> getSouthElements(Integer element){
+    public List<Integer> getSouthElements(Integer element){
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> souths = new ArrayList<>();
@@ -176,11 +178,11 @@ public class MuseumSurveillance {
         return souths;
     }
 
-    private List<Integer> getWestElements(Integer element){
+    public List<Integer> getWestElements(Integer element){
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> wests = new ArrayList<>();
-        for(int k = 0; k < j; k++){
+        for(int k = j - 1; k > 0; k--){
             if(isEmpty(i, k)) {
                 wests.add(getElement(i, k));
             }else{
@@ -190,7 +192,7 @@ public class MuseumSurveillance {
         return wests;
     }
 
-    private List<Integer> getEastElements(Integer element){
+    public List<Integer> getEastElements(Integer element){
         int i = getRow(element);
         int j = getCol(element);
         List<Integer> easts = new ArrayList<>();
