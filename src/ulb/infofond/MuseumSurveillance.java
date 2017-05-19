@@ -1,11 +1,9 @@
 package ulb.infofond;
 
 import org.chocosolver.solver.Model;
-import org.chocosolver.solver.Solution;
 import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.variables.BoolVar;
 import org.chocosolver.solver.variables.IntVar;
-import org.chocosolver.util.tools.ArrayUtils;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -73,7 +71,8 @@ public class MuseumSurveillance {
     private int numberOfRows, numberOfCols;
     private Model model;
     private BoolVar[] laserVars;
-    private Map<Integer, IntVar> watcherVars;
+    private BoolVar[] northVars;
+    private Map<Integer, IntVar> watcherVars, northWatcherVars;
     private IntVar numberOfLasersVar;
     private List<Integer> emptyElements;
 
@@ -85,10 +84,13 @@ public class MuseumSurveillance {
         this.model = new Model("MuseumSurveillance");
         this.watcherVars = initWatcherVars();
         this.laserVars = model.boolVarArray("Lasers", getNumberOfElements());
+        this.northVars = model.boolVarArray("Norths", getNumberOfElements());
+        this.northWatcherVars = initNorthWatcherVars();
+
         this.numberOfLasersVar = model.intVar("Lasers", 0, getNumberOfElements(), true);
-        for (Integer i : watcherVars.keySet()) {
+        for (Integer i : northWatcherVars.keySet()) {
             // log.info("Creating constraint for watcherVar = " + watcherVars.get(i));
-            model.element(model.intVar(1), laserVars, watcherVars.get(i), 1).post();
+            model.element(model.intVar(1), laserVars, northWatcherVars.get(i), 1).post();
         }
         int[] coeffs = new int[laserVars.length];
         Arrays.fill(coeffs, 0, laserVars.length, 1);
@@ -97,14 +99,25 @@ public class MuseumSurveillance {
 
         Solver solver = model.getSolver();
         model.setObjective(false, numberOfLasersVar);
-        while(solver.solve()){
+        while (solver.solve()) {
             Set<String> set = new HashSet<>();
             // solver.showShortStatistics();
-            for(Integer i : watcherVars.keySet()){
-                set.add(Arrays.toString(getCoordinates(watcherVars.get(i).getValue())));
+            for (Integer i : northWatcherVars.keySet()) {
+                set.add(Arrays.toString(getCoordinates(northWatcherVars.get(i).getValue())));
             }
             System.out.println(set);
         }
+    }
+
+    private Map<Integer, IntVar> initNorthWatcherVars() {
+        log.info("Building NorthWatcher variables");
+        Map<Integer, IntVar> watcherVars = new HashMap<>();
+        for (Integer element : getEmptyElements()) {
+            watcherVars.put(element, buildNorthElementDomain(element));
+        }
+        log.info("NorthWatcher variables build with their respective domain");
+        return watcherVars;
+
     }
 
     /**
@@ -174,6 +187,17 @@ public class MuseumSurveillance {
         // TODO to test that this returns an array of the list values
         int[] values = all.stream().mapToInt(i -> i).toArray();
         return model.intVar(String.format("(%d, %d)", getRow(element), getCol(element)), values);
+    }
+
+    private IntVar buildNorthElementDomain(Integer element) {
+        List<Integer> all = new ArrayList<>();
+        // elements of the south can monitor the element (given as parameter) by watching to the north
+        all.addAll(getSouthElements(element));
+        // adding the element itself since if it is a laser, it should be count as as already monitored!
+        all.add(element);
+        // TODO to test that this returns an array of the list values
+        int[] values = all.stream().mapToInt(i -> i).toArray();
+        return model.intVar(String.format("North(%d, %d)", getRow(element), getCol(element)), values);
     }
 
     public List<Integer> getNorthElements(Integer element) {
