@@ -17,6 +17,17 @@ public final class AttacksFactory {
         return attacks;
     }
 
+    /*public static boolean[][] foolAttacks(int numberofRows, int numberofCols){
+        int numberOfElements = numberofRows * numberofCols;
+        boolean[][] attacks = new boolean[numberOfElements][numberOfElements];
+        for(int i = 0; i < numberOfElements; i++){
+            for(int j = 0; j < numberOfElements; j++){
+                attacks[i][j] = towerAttack(i, j, numberofCols);
+            }
+        }
+        return attacks;
+    }
+    */
     private static boolean towerAttack(int i, int j, int numberOfCols) {
         int ir = getRow(i, numberOfCols);
         int ic = getCol(i, numberOfCols);
