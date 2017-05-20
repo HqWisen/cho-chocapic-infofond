@@ -5,8 +5,6 @@ import org.chocosolver.solver.Solver;
 import org.chocosolver.solver.variables.BoolVar;
 import org.chocosolver.solver.variables.IntVar;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -15,109 +13,69 @@ import java.util.logging.Logger;
  * Created by hboulahy on 18/05/17.
  */
 
-
+@Deprecated
 public class MuseumSurveillance {
     private final static Logger log = Logger.getLogger(MuseumSurveillance.class.getName());
     private final static Character OBSTACLE = '*';
+    private final static int NORTH = 0, SOUTH = 1, WEST = 2, EAST = 3;
 
     static {
         log.setLevel(Level.INFO);
     }
 
-    private static Character[] parseLine(String line) {
-        List<Character> elements = new ArrayList<>();
-        for (int i = 0; i < line.length(); i += 2) {
-            elements.add(line.charAt(i));
-        }
-        Character[] array = elements.toArray(new Character[elements.size()]);
-        // log.info(Arrays.toString(array));
-        return array;
-    }
-
-    private static List<Character[]> getMapLines(String filename) {
-        List<Character[]> mapLines = new ArrayList<>();
-        BufferedReader reader = null;
-        try {
-            reader = new BufferedReader(new FileReader(filename));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                mapLines.add(parseLine(line));
-            }
-            reader.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return mapLines;
-    }
-
-    private static Character[][] parseMap(String filename) {
-        log.info(String.format("Parsing %s", filename));
-        List<Character[]> lines = getMapLines(filename);
-        int numberOfRows = lines.size();
-        int numberOfCols = lines.get(0).length;
-        log.info(String.format("size %d x %d", numberOfRows, numberOfCols));
-        Character[][] map = new Character[numberOfRows][numberOfCols];
-        for (int r = 0; r < numberOfRows; r++) {
-            for (int c = 0; c < numberOfCols; c++) {
-                map[r][c] = lines.get(r)[c];
-            }
-        }
-        log.info(String.format("Parsing results: %s", Arrays.deepToString(map)));
-        return map;
-    }
-
-
     private Character[][] map;
     private int numberOfRows, numberOfCols;
     private Model model;
     private BoolVar[] laserVars;
-    private BoolVar[] northVars;
-    private Map<Integer, IntVar> watcherVars, northWatcherVars;
+    private HashMap<Integer, IntVar> dirOfVars;
+    private Map<Integer, IntVar> watcherVars;
+    // Directions per empty cases variables (in watcherVars) that contains a direction per element
+    private Map<Integer, Integer[]> directions;
     private IntVar numberOfLasersVar;
     private List<Integer> emptyElements;
 
     public MuseumSurveillance(String filename) {
         System.out.println("Creating MuseumSurveillance");
-        this.map = parseMap(filename);
+        this.map = new MuseumParser(filename).getMuseumMap().getAsMatrix();
         initSizeAttribute();
         buildEmptyElements();
         this.model = new Model("MuseumSurveillance");
-        this.watcherVars = initWatcherVars();
+        initWatcherVarsAndDirectionVars();
         this.laserVars = model.boolVarArray("Lasers", getNumberOfElements());
-        this.northVars = model.boolVarArray("Norths", getNumberOfElements());
-        this.northWatcherVars = initNorthWatcherVars();
-
         this.numberOfLasersVar = model.intVar("Lasers", 0, getNumberOfElements(), true);
-        for (Integer i : northWatcherVars.keySet()) {
+        for (Integer i : watcherVars.keySet()) {
             // log.info("Creating constraint for watcherVar = " + watcherVars.get(i));
-            model.element(model.intVar(1), laserVars, northWatcherVars.get(i), 1).post();
+            model.element(model.intVar(1), laserVars, watcherVars.get(i), 1).post();
         }
+        for(Integer i : getEmptyElements()){
+            model.element(dirOfVars.get(i), getDirectionIntTable(i), watcherVars.get(i) , 1);
+        }
+
+
+
         int[] coeffs = new int[laserVars.length];
         Arrays.fill(coeffs, 0, laserVars.length, 1);
         model.scalar(laserVars, coeffs, "=", numberOfLasersVar).post();
-
-
         Solver solver = model.getSolver();
         model.setObjective(false, numberOfLasersVar);
         while (solver.solve()) {
             Set<String> set = new HashSet<>();
             // solver.showShortStatistics();
-            for (Integer i : northWatcherVars.keySet()) {
-                set.add(Arrays.toString(getCoordinates(northWatcherVars.get(i).getValue())));
+            for (Integer i : watcherVars.keySet()) {
+                set.add(Arrays.toString(getCoordinates(watcherVars.get(i).getValue())));
             }
             System.out.println(set);
         }
+
     }
 
-    private Map<Integer, IntVar> initNorthWatcherVars() {
-        log.info("Building NorthWatcher variables");
-        Map<Integer, IntVar> watcherVars = new HashMap<>();
-        for (Integer element : getEmptyElements()) {
-            watcherVars.put(element, buildNorthElementDomain(element));
-        }
-        log.info("NorthWatcher variables build with their respective domain");
-        return watcherVars;
-
+    private int[] getDirectionIntTable(Integer element) {
+        int[] results = new int[getNumberOfElements()];
+        for (int i = 0; i < getNumberOfElements(); i++){
+            Integer value = directions.get(element)[i];
+            results[i] = value != null ? value : -1;
+         }
+        return results;
     }
 
     /**
@@ -146,20 +104,28 @@ public class MuseumSurveillance {
         return map[i][j] != OBSTACLE;
     }
 
+    public boolean isEmpty(Integer element) {
+        return isEmpty(getRow(element), getCol(element));
+    }
+
     /**
      * Initiliaze the Watchers variables.
      * Those variables correspond to all variables per empty elements.
      * The domain correspond of all elements that can watch this empty element
      * i.e. the elements where a laser can be put to monitor this empty element.
      */
-    private Map<Integer, IntVar> initWatcherVars() {
-        log.info("Building Watcher variables");
-        Map<Integer, IntVar> watcherVars = new HashMap<>();
+    private void initWatcherVarsAndDirectionVars() {
+        log.info("Building Watcher variables and directions data");
+        this.directions = new HashMap<>();
+        this.watcherVars = new HashMap<>();
+        this.dirOfVars = new HashMap<>();
         for (Integer element : getEmptyElements()) {
-            watcherVars.put(element, buildElementDomain(element));
+            this.directions.put(element, new Integer[getNumberOfElements()]);
+            this.watcherVars.put(element, buildElementDomain(element));
+            this.dirOfVars.put(element, model.intVar(String.format("DirectionOf %d", element),
+                    new int[]{NORTH, SOUTH, EAST, WEST}));
         }
-        log.info("Watcher variables build with their respective domain");
-        return watcherVars;
+        log.info("Watcher variables build with their respective domain and respective directions");
     }
 
     /**
@@ -189,17 +155,6 @@ public class MuseumSurveillance {
         return model.intVar(String.format("(%d, %d)", getRow(element), getCol(element)), values);
     }
 
-    private IntVar buildNorthElementDomain(Integer element) {
-        List<Integer> all = new ArrayList<>();
-        // elements of the south can monitor the element (given as parameter) by watching to the north
-        all.addAll(getSouthElements(element));
-        // adding the element itself since if it is a laser, it should be count as as already monitored!
-        all.add(element);
-        // TODO to test that this returns an array of the list values
-        int[] values = all.stream().mapToInt(i -> i).toArray();
-        return model.intVar(String.format("North(%d, %d)", getRow(element), getCol(element)), values);
-    }
-
     public List<Integer> getNorthElements(Integer element) {
         int i = getRow(element);
         int j = getCol(element);
@@ -207,6 +162,7 @@ public class MuseumSurveillance {
         for (int k = i - 1; k > 0; k--) {
             if (isEmpty(k, j)) {
                 norths.add(getElement(k, j));
+                directions.get(element)[getElement(k, j)] = NORTH;
             } else {
                 break;
             }
@@ -221,6 +177,7 @@ public class MuseumSurveillance {
         for (int k = i + 1; k < numberOfRows; k++) {
             if (isEmpty(k, j)) {
                 souths.add(getElement(k, j));
+                directions.get(element)[getElement(k, j)] = SOUTH;
             } else {
                 break;
             }
@@ -235,6 +192,7 @@ public class MuseumSurveillance {
         for (int k = j - 1; k > 0; k--) {
             if (isEmpty(i, k)) {
                 wests.add(getElement(i, k));
+                directions.get(element)[getElement(i, k)] = WEST;
             } else {
                 break;
             }
@@ -249,6 +207,7 @@ public class MuseumSurveillance {
         for (int k = j + 1; k < numberOfCols; k++) {
             if (isEmpty(i, k)) {
                 easts.add(getElement(i, k));
+                directions.get(element)[getElement(i, k)] = EAST;
             } else {
                 break;
             }
@@ -263,7 +222,7 @@ public class MuseumSurveillance {
     }
 
     private void showMap() {
-        System.out.println(String.format("Map size: %dx%d", numberOfRows, numberOfCols));
+        System.out.println(String.format("MuseumMap size: %dx%d", numberOfRows, numberOfCols));
         for (int i = 0; i < numberOfRows; i++) {
             for (int j = 0; j < numberOfCols; j++) {
                 System.out.print(map[i][j] + " ");
@@ -311,10 +270,22 @@ public class MuseumSurveillance {
         return numberOfRows * numberOfCols;
     }
 
+    public int getNumberOfEmptyElements() {
+        return this.emptyElements.size();
+    }
+
     public Integer[] getCoordinates(int element) {
         return new Integer[]{getRow(element), getCol(element)};
     }
 
+    /**
+     *
+     * @param element key of the directions map, it must be a empty element
+     * @return direction map of all empty elements surrounding 'element'
+     */
+    public Integer[] getDirectionTable(Integer element){
+        return this.directions.get(element);
+    }
     /**
      * @return all empty elements (with no obstacle) of the map
      */

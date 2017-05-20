@@ -48,6 +48,13 @@ class MuseumSurveillanceTest {
     }
 
     @Test
+    void directionsContent(){
+        for(Integer element : solver.getEmptyElements()){
+            // System.out.println(element + " - " + solver.getDirectionTable(element));
+        }
+    }
+
+    @Test
     void getCol() {
         assertEquals(8, solver.getCol(8));
         assertEquals(1, solver.getCol(10));
