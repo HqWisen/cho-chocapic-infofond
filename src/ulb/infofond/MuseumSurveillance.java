@@ -1,7 +1,9 @@
 package ulb.infofond;
 
+import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 import org.chocosolver.solver.Model;
 import org.chocosolver.solver.Solver;
+import org.chocosolver.solver.constraints.Constraint;
 import org.chocosolver.solver.variables.BoolVar;
 import org.chocosolver.solver.variables.IntVar;
 
@@ -13,12 +15,11 @@ import java.util.logging.Logger;
  * Created by hboulahy on 18/05/17.
  */
 
-@Deprecated
 public class MuseumSurveillance {
     private final static Logger log = Logger.getLogger(MuseumSurveillance.class.getName());
     private final static Character OBSTACLE = '*';
-    private final static int NORTH = 0, SOUTH = 1, WEST = 2, EAST = 3;
-
+    private final static int NORTH = 0, SOUTH = 1, WEST = 2, EAST = 3, SELF = 4;
+    private final static int[] DIROF_DOMAIN = {NORTH, SOUTH, EAST, WEST, SELF};
     static {
         log.setLevel(Level.INFO);
     }
@@ -45,12 +46,9 @@ public class MuseumSurveillance {
         this.numberOfLasersVar = model.intVar("Lasers", 0, getNumberOfElements(), true);
         for (Integer i : watcherVars.keySet()) {
             // log.info("Creating constraint for watcherVar = " + watcherVars.get(i));
-            model.element(model.intVar(1), laserVars, watcherVars.get(i), 1).post();
+            model.element(model.intVar(1), laserVars, watcherVars.get(i), 0).post();
         }
-        for(Integer i : getEmptyElements()){
-            model.element(dirOfVars.get(i), getDirectionIntTable(i), watcherVars.get(i) , 1);
-        }
-
+        postDirectionConstraints();
 
 
         int[] coeffs = new int[laserVars.length];
@@ -58,18 +56,127 @@ public class MuseumSurveillance {
         model.scalar(laserVars, coeffs, "=", numberOfLasersVar).post();
         Solver solver = model.getSolver();
         model.setObjective(false, numberOfLasersVar);
+        System.out.println(solver.solve());
         while (solver.solve()) {
+            System.out.print("Solution #" + solver.getSolutionCount());
+            showMapWatchers();
+            showMapDirections();
+            //solver.showShortStatistics();
+
+/*
             Set<String> set = new HashSet<>();
-            // solver.showShortStatistics();
+            solver.showShortStatistics();
             for (Integer i : watcherVars.keySet()) {
                 set.add(Arrays.toString(getCoordinates(watcherVars.get(i).getValue())));
             }
             System.out.println(set);
+*/
         }
 
     }
 
-    private int[] getDirectionIntTable(Integer element) {
+    private void showMapDirections() {
+        System.out.println(String.format("[DirOf] MuseumMap size: %dx%d", numberOfRows, numberOfCols));
+        for (int i = 0; i < numberOfRows; i++) {
+            for (int j = 0; j < numberOfCols; j++) {
+                IntVar var = dirOfVars.get(getElement(i, j));
+                if(var != null){
+                    System.out.print(String.format("%10s", parseDirection(var.getValue())));
+                }else{
+                    System.out.print(String.format("%10s", map[i][j]));
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    private String parseDirection(int value) {
+        String result = null;
+        switch (value){
+            case NORTH:
+                result = "N";
+                break;
+            case SOUTH:
+                result = "S";
+                break;
+            case EAST:
+                result = "E";
+                break;
+            case WEST:
+                result = "W";
+                break;
+            case SELF:
+                result = "[L]"; // Laser
+                break;
+        }
+        return result;
+    }
+
+    private void showMapWatchers() {
+        System.out.println(String.format("[Watchers] MuseumMap size: %dx%d", numberOfRows, numberOfCols));
+        for (int i = 0; i < numberOfRows; i++) {
+            for (int j = 0; j < numberOfCols; j++) {
+                IntVar var = watcherVars.get(getElement(i, j));
+                if(var != null){
+                    System.out.print(String.format("%10s", getCoordStr(var.getValue())));
+                }else{
+                    System.out.print(String.format("%10s", map[i][j]));
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    private String getCoordStr(int element) {
+        return Arrays.toString(getCoordinates(element));
+    }
+
+    private void postDirectionConstraints() {
+        postDirectionOfConstraints();
+        for(Integer i : getEmptyElements()){
+            for(Integer j : getEmptyElements()) {
+                model.or(buildAreLasers(i, j),
+                         buildDifferentWatcher(i, j),
+                         buildSameDirection(i, j)).post();
+            }
+        }
+    }
+
+    private Constraint buildAreLasers(Integer i, Integer j){
+        return model.or(model.arithm(dirOfVars.get(i), "=", SELF),
+                        model.arithm(dirOfVars.get(j), "=", SELF));
+    }
+
+    private Constraint buildDifferentWatcher(Integer i, Integer j){
+        return model.arithm(watcherVars.get(i), "!=", watcherVars.get(j));
+    }
+
+    private Constraint buildSameDirection(Integer i, Integer j) {
+        return model.arithm(dirOfVars.get(i), "=", dirOfVars.get(j));
+    }
+
+    private Constraint buildSameWatcher(Integer i, Integer j) {
+        return model.arithm(watcherVars.get(i), "=", watcherVars.get(j));
+    }
+
+    /**
+     *
+     * @param i
+     * @param j
+     * @return a constraint that indicate that i and j must be different that their watcher
+     */
+    private Constraint buildNotSelfWatcher(Integer i, Integer j) {
+        return model.and(model.arithm(watcherVars.get(i), "!=", i),
+                         model.arithm(watcherVars.get(j), "!=", j));
+    }
+
+    private void postDirectionOfConstraints() {
+        for(Integer i : getEmptyElements()){
+            model.element(dirOfVars.get(i), getDirectionInTable(i), watcherVars.get(i)).post();
+        }
+    }
+
+    private int[] getDirectionInTable(Integer element) {
         int[] results = new int[getNumberOfElements()];
         for (int i = 0; i < getNumberOfElements(); i++){
             Integer value = directions.get(element)[i];
@@ -123,7 +230,7 @@ public class MuseumSurveillance {
             this.directions.put(element, new Integer[getNumberOfElements()]);
             this.watcherVars.put(element, buildElementDomain(element));
             this.dirOfVars.put(element, model.intVar(String.format("DirectionOf %d", element),
-                    new int[]{NORTH, SOUTH, EAST, WEST}));
+                    DIROF_DOMAIN));
         }
         log.info("Watcher variables build with their respective domain and respective directions");
     }
@@ -150,6 +257,7 @@ public class MuseumSurveillance {
         all.addAll(getEastElements(element));
         // adding the element itself since if it is a laser, it should be count as as already monitored!
         all.add(element);
+        directions.get(element)[element] = SELF;
         // TODO to test that this returns an array of the list values
         int[] values = all.stream().mapToInt(i -> i).toArray();
         return model.intVar(String.format("(%d, %d)", getRow(element), getCol(element)), values);
