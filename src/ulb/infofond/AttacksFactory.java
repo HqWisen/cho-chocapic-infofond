@@ -6,15 +6,33 @@ package ulb.infofond;
  */
 public final class AttacksFactory {
 
-    public static boolean[][] towerAttacks(int numberofRows, int numberofCols){
-        int numberOfElements = numberofRows * numberofCols;
+    public static boolean[][] towerAttacks(int numberOfRows, int numberOfCols){
+        int numberOfElements = numberOfRows * numberOfCols;
         boolean[][] attacks = new boolean[numberOfElements][numberOfElements];
         for(int i = 0; i < numberOfElements; i++){
             for(int j = 0; j < numberOfElements; j++){
-                attacks[i][j] = towerAttack(i, j, numberofCols);
+                attacks[i][j] = towerAttack(i, j, numberOfCols);
             }
         }
         return attacks;
+    }
+
+    public static boolean[][] foolAttacks(int numberOfRows, int numberOfCols) {
+        int numberOfElements = numberOfRows * numberOfCols;
+        boolean[][] attacks = new boolean[numberOfElements][numberOfElements];
+        for(int i = 0; i < numberOfElements; i++){
+            for(int j = 0; j < numberOfElements; j++){
+                attacks[i][j] = foolAttack(i, j, numberOfCols);
+            }
+        }return attacks;
+    }
+
+    private static boolean foolAttack(int i, int j, int numberOfCols) {
+        int ir = getRow(i, numberOfCols);
+        int ic = getCol(i, numberOfCols);
+        int jr = getRow(j, numberOfCols);
+        int jc = getCol(j, numberOfCols);
+        return Math.abs(ir - jr) == Math.abs(ic - jc);
     }
 
     /*public static boolean[][] foolAttacks(int numberofRows, int numberofCols){
