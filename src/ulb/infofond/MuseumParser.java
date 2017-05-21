@@ -1,7 +1,9 @@
 package ulb.infofond;
 
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +41,10 @@ public class MuseumParser {
                 mapLines.add(parseLine(line));
             }
             reader.close();
-        } catch (Exception e) {
+        } catch (FileNotFoundException e) {
+            System.out.println("File '" + filename + "' doesn't exist.\nAbort.");
+            System.exit(1);
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return mapLines;

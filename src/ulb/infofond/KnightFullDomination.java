@@ -102,7 +102,19 @@ public class KnightFullDomination {
     }
 
     public static void main(String[] args){
-        KnightFullDomination solver = new KnightFullDomination(2);
+        int n = 4;
+        if(args.length == 0){
+            System.out.println("No size given using default size: " + n);
+        }else{
+            try {
+                n = Integer.parseInt(args[0]);
+            }catch (NumberFormatException e){
+                System.out.println("Cannot convert " + args[0] + " to Integer.\nAbort.");
+                System.exit(1);
+            }
+            System.out.println("Running with size: " + n);
+        }
+        KnightFullDomination solver = new KnightFullDomination(n);
         solver.solve();
     }
 

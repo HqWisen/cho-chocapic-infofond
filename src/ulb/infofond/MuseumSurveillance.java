@@ -7,6 +7,7 @@ import org.chocosolver.solver.constraints.Constraint;
 import org.chocosolver.solver.variables.BoolVar;
 import org.chocosolver.solver.variables.IntVar;
 
+import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -438,6 +439,12 @@ public class MuseumSurveillance {
 
     public static void main(String[] args) {
         String filename = "input/museum.txt";
+        if (args.length == 0) {
+            System.out.println("No input file given using default file: '" + filename + "'.");
+        }else{
+            filename = args[0];
+            System.out.println("Running MuseumSurveillance using file: '" + filename +"'.");
+        }
         MuseumSurveillance solver = new MuseumSurveillance(filename);
         solver.solve();
     }
