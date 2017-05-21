@@ -9,7 +9,7 @@ import org.chocosolver.solver.Model;
 import org.chocosolver.solver.Solution;
 import org.chocosolver.solver.variables.IntVar;
 
-public class ChocoProject {
+public class ChessSolver {
 
     public static Options buildCommandLineOptions() {
         Options options = new Options();

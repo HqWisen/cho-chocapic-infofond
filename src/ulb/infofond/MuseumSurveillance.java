@@ -34,6 +34,7 @@ public class MuseumSurveillance {
     private Map<Integer, Integer[]> directions;
     private IntVar numberOfLasersVar;
     private List<Integer> emptyElements;
+    private Solver solver;
 
     public MuseumSurveillance(String filename) {
         System.out.println("Creating MuseumSurveillance");
@@ -44,31 +45,29 @@ public class MuseumSurveillance {
         initWatcherVarsAndDirectionVars();
         this.laserVars = model.boolVarArray("Lasers", getNumberOfElements());
         this.numberOfLasersVar = model.intVar("Lasers", 0, getNumberOfElements(), true);
+        this.solver = model.getSolver();
         for (Integer i : watcherVars.keySet()) {
             // log.info("Creating constraint for watcherVar = " + watcherVars.get(i));
             model.element(model.intVar(1), laserVars, watcherVars.get(i), 0).post();
         }
         postDirectionConstraints();
         model.sum(laserVars, "=", numberOfLasersVar).post();
-        Solver solver = model.getSolver();
         model.setObjective(false, numberOfLasersVar);
-        System.out.println(solver.solve());
-        while (solver.solve()) {
+
+    }
+
+    public boolean solve(){
+        boolean solved = solver.solve();
+        while (solved) {
             System.out.print("Solution #" + solver.getSolutionCount());
-            showMapWatchers();
+            showMap();
+            /*showMapWatchers();
             showMapDirections();
-            //solver.showShortStatistics();
-
-/*
-            Set<String> set = new HashSet<>();
-            solver.showShortStatistics();
-            for (Integer i : watcherVars.keySet()) {
-                set.add(Arrays.toString(getCoordinates(watcherVars.get(i).getValue())));
-            }
-            System.out.println(set);
-*/
+            */
+            solved = solver.solve();
         }
-
+        System.out.println("Optimal solution found (the latest solution)");
+        return  solved;
     }
 
     private void showMapDirections() {
@@ -326,13 +325,52 @@ public class MuseumSurveillance {
     }
 
     private void showMap() {
-        System.out.println(String.format("MuseumMap size: %dx%d", numberOfRows, numberOfCols));
+        System.out.println(String.format(" MuseumMap size: %dx%d", numberOfRows, numberOfCols));
+        // showMapDirections();
+        Map<Integer, String> laserDirections = buildLaserDirections();
         for (int i = 0; i < numberOfRows; i++) {
             for (int j = 0; j < numberOfCols; j++) {
-                System.out.print(map[i][j] + " ");
+                Integer element = getElement(i, j);
+                if(laserVars[element].getValue() == 1){
+                    String value = laserDirections.get(element);
+                    System.out.print(String.format("%3s", value != null ? value : "L"));
+                }else{
+                    System.out.print(String.format("%3s", map[i][j]));
+                }
             }
             System.out.println();
         }
+    }
+
+    private Map<Integer, String> buildLaserDirections() {
+        Map<Integer, String> laserDirections = new HashMap<>();
+        for(Integer element : getEmptyElements()){
+            int watcher = watcherVars.get(element).getValue();
+            int direction = dirOfVars.get(element).getValue();
+            if(direction != SELF){
+                laserDirections.put(watcher, getOppositeDirection(direction));
+            }
+        }
+        return laserDirections;
+    }
+
+    private String getOppositeDirection(int value) {
+        String result = "Unknown";
+        switch(value){
+            case NORTH:
+                result = "S";
+                break;
+            case SOUTH:
+                result = "N";
+                break;
+            case WEST:
+                result = "E";
+                break;
+            case EAST:
+                result = "W";
+                break;
+        }
+        return result;
     }
 
     // TODO check that the getCol and getRow methods work correctly (units tests ?)
@@ -400,7 +438,7 @@ public class MuseumSurveillance {
     public static void main(String[] args) {
         String filename = "input/museum.txt";
         MuseumSurveillance solver = new MuseumSurveillance(filename);
-        solver.showMap();
+        solver.solve();
     }
 
 }
