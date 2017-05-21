@@ -54,24 +54,24 @@ public class Chess {
         System.out.println(solver.solve());
         System.out.println("Solution #" + solver.getSolutionCount());
         showMap();
-        System.out.print("TOWERS:   ");
+        System.out.print(String.format("%10s", "TOWERS:"));
         for(int i = 0; i < getNumberOfElements(); i++){
-            System.out.print(String.format("%10s",towerVars[i].getBooleanValue()));
+            System.out.print(String.format("%7s",towerVars[i].getBooleanValue()));
         }
         System.out.println();
-        System.out.print("FOOLS:    ");
+        System.out.print(String.format("%10s", "FOOLS:"));
         for(int i = 0; i < getNumberOfElements(); i++){
-            System.out.print(String.format("%10s",foolVars[i].getBooleanValue()));
+            System.out.print(String.format("%7s",foolVars[i].getBooleanValue()));
         }
         System.out.println();
-        System.out.print("KNIGHTS:    ");
+        System.out.print(String.format("%10s", "KNIGHTS:"));
         for(int i = 0; i < getNumberOfElements(); i++){
-            System.out.print(String.format("%10s", knightVars[i].getBooleanValue()));
+            System.out.print(String.format("%7s", knightVars[i].getBooleanValue()));
         }
         System.out.println();
-        System.out.print("PRESENCE: ");
+        System.out.print(String.format("%10s", "PRESENCE:"));
         for(int i = 0; i < getNumberOfElements(); i++){
-            System.out.print(String.format("%10s", presenceVars[i].getBooleanValue()));
+            System.out.print(String.format("%7s", presenceVars[i].getBooleanValue()));
         }
         System.out.println();
 

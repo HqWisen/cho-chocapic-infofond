@@ -11,6 +11,7 @@ import java.util.*;
 /**
  * Created by hboulahy on 20/05/17.
  */
+@Deprecated
 public class MuseumSolver {
     private static final int OBSTACLE_VALUE = 0, EMPTY_VALUE = 1, NORTH = 2, SOUTH = 3, EAST = 4, WEST = 5;
     private static final int[] VARS_DOMAIN = {OBSTACLE_VALUE, EMPTY_VALUE, NORTH, SOUTH, EAST, WEST};
