@@ -1,11 +1,15 @@
 package ulb.infofond;
 
+import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import org.chocosolver.solver.Model;
 import org.chocosolver.solver.Solver;
+import org.chocosolver.solver.constraints.Constraint;
 import org.chocosolver.solver.variables.BoolVar;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Created by hboulahy on 20/05/17.
@@ -36,6 +40,7 @@ public class Chess {
         postDifferentSpot();
         postPieceConstraints(towerVars, towerAttacks, k1);
         postPieceConstraints(foolVars, foolAttacks, k2);
+        postDominationConstraints();
         solve();
     }
 
@@ -112,8 +117,7 @@ public class Chess {
     private void postPieceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks, int sum){
         postSumConstraints(pieceVars, sum);
         // postIndependenceConstraints(pieceVars, pieceAttacks);
-        postDominationConstraints(pieceVars, pieceAttacks);
-
+        // postDominationConstraints(pieceVars, pieceAttacks);
     }
 
     public void postSumConstraints(BoolVar[] vars, int sum) {
@@ -121,15 +125,32 @@ public class Chess {
     }
 
     private void postIndependenceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks){
-        postMainPieceConstraints(pieceVars, pieceAttacks, false);
+        postMainPieceConstraints(pieceVars, pieceAttacks);
     }
 
-    private void postDominationConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks){
-        postMainPieceConstraints(pieceVars, pieceAttacks, true);
+    private void postDominationConstraints(){
+        for (int i = 0; i < getNumberOfElements(); i++) {
+            List<Constraint> constraintList = new ArrayList<>();
+            for (int j = 0; j < getNumberOfElements(); j++) {
+                if (i != j) {
+                    Constraint attackedByTower = model.and(model.arithm(towerVars[j], "=", 1),
+                            model.arithm(model.boolVar(towerAttacks[j][i]),  "=", 1));
+                    Constraint attackedByFool = model.and(model.arithm(foolVars[j], "=", 1),
+                            model.arithm(model.boolVar(foolAttacks[j][i]),  "=", 1));
+                    Constraint dominationPerJ = model.or(model.arithm(presenceVars[i], "=", 0),
+                            attackedByTower,
+                            attackedByFool);
+                    constraintList.add(dominationPerJ);
+                }
+            }
+            Constraint[] constraints = new Constraint[constraintList.size()];
+            constraintList.toArray(constraints);
+            model.or(constraints).post();
+        }
     }
 
-    private void postMainPieceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks, boolean domination) {
-        String attackOperation = domination ? "!=" : "=";
+    private void postMainPieceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks) {
+        String attackOperation = "=";
         for (int i = 0; i < getNumberOfElements(); i++) {
             for (int j = 0; j < getNumberOfElements(); j++) {
                 if (i != j) {
@@ -158,7 +179,7 @@ public class Chess {
     }
 
     public static void main(String[] args) {
-        Chess solver = new Chess(2, 2, 1, 1, false);
+        Chess solver = new Chess(5, 4, 2, 1, false);
     }
 
 
