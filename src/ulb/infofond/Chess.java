@@ -20,6 +20,8 @@ public class Chess {
     private BoolVar[] towerVars, foolVars, knightVars;
     private BoolVar[] presenceVars;
     private boolean[][] towerAttacks, foolAttacks, knightAttacks;
+    private boolean solved;
+    private Solver solver;
 
     public Chess(int n, int k1, int k2, int k3, boolean domination) {
         this.n = n;
@@ -29,6 +31,7 @@ public class Chess {
         this.domination = domination;
         showExecutionDetails();
         this.model = new Model("Chess Problem");
+        this.solver = model.getSolver();
         this.towerVars = model.boolVarArray(getNumberOfElements());
         this.foolVars = model.boolVarArray(getNumberOfElements());
         this.knightVars = model.boolVarArray(getNumberOfElements());
@@ -37,8 +40,8 @@ public class Chess {
         this.foolAttacks = AttacksFactory.foolAttacks(n, n);
         this.knightAttacks = AttacksFactory.knightAttacks(n, n);
         postConstraints();
-        solve();
     }
+
 
     private void showExecutionDetails() {
         String mode = domination ? "DOMINITION" : "INDEPENDENCE";
@@ -46,35 +49,41 @@ public class Chess {
         System.out.println(String.format("n=%d k1=%d k2=%d k3=%d mode is %s", n, k1, k2, k3, mode));
     }
 
-    private void solve() {
-        // model.setObjective(false, totalVar);
-        //while (solver.solve()) {
-        //}
-        Solver solver = model.getSolver();
-        System.out.println(solver.solve());
-        System.out.println("Solution #" + solver.getSolutionCount());
-        showMap();
+    public boolean solve() {
+        solved = solver.solve();
+        return solved;
+    }
+
+    public void showSolution() {
+        if(solved) {
+            // System.out.println("Solution #" + solver.getSolutionCount());
+            System.out.println("Found solution: ");
+            showMap();
+        }else{
+            System.out.println("No solution found");
+        }
+/*
         System.out.print(String.format("%10s", "TOWERS:"));
-        for(int i = 0; i < getNumberOfElements(); i++){
-            System.out.print(String.format("%7s",towerVars[i].getBooleanValue()));
+        for (int i = 0; i < getNumberOfElements(); i++) {
+            System.out.print(String.format("%7s", towerVars[i].getBooleanValue()));
         }
         System.out.println();
         System.out.print(String.format("%10s", "FOOLS:"));
-        for(int i = 0; i < getNumberOfElements(); i++){
-            System.out.print(String.format("%7s",foolVars[i].getBooleanValue()));
+        for (int i = 0; i < getNumberOfElements(); i++) {
+            System.out.print(String.format("%7s", foolVars[i].getBooleanValue()));
         }
         System.out.println();
         System.out.print(String.format("%10s", "KNIGHTS:"));
-        for(int i = 0; i < getNumberOfElements(); i++){
+        for (int i = 0; i < getNumberOfElements(); i++) {
             System.out.print(String.format("%7s", knightVars[i].getBooleanValue()));
         }
         System.out.println();
         System.out.print(String.format("%10s", "PRESENCE:"));
-        for(int i = 0; i < getNumberOfElements(); i++){
+        for (int i = 0; i < getNumberOfElements(); i++) {
             System.out.print(String.format("%7s", presenceVars[i].getBooleanValue()));
         }
+*/
         System.out.println();
-
     }
 
     private void showMap() {
@@ -85,17 +94,17 @@ public class Chess {
                 int fool = foolVars[element].getValue();
                 int knight = knightVars[element].getValue();
                 String value = "*";
-                if(tower == 1 && fool == 1){
+                if (tower == 1 && fool == 1) {
                     throw new ValueException("Cannot have a fool and a tower on the same spot!");
-                }else if(tower == 1 && knight == 1){
+                } else if (tower == 1 && knight == 1) {
                     throw new ValueException("Cannot have a tower and a knight on the same spot!");
-                }else if(knight == 1 && fool == 1){
+                } else if (knight == 1 && fool == 1) {
                     throw new ValueException("Cannot have a fool and a knight on the same spot!");
-                }else if(tower == 1){
+                } else if (tower == 1) {
                     value = "T";
-                }else if(fool == 1){
+                } else if (fool == 1) {
                     value = "F";
-                }else if(knight == 1){
+                } else if (knight == 1) {
                     value = "C";
                 }
                 System.out.print(String.format("%2s", value));
@@ -104,19 +113,19 @@ public class Chess {
         }
     }
 
-    private void postConstraints(){
+    private void postConstraints() {
         postPresenceConstraints();
         postDifferentSpot();
         postSumConstraints();
-        if(this.domination){
+        if (this.domination) {
             postDominationConstraints();
-        }else{
+        } else {
             postIndependenceConstraints();
         }
     }
 
     private void postDifferentSpot() {
-        for(int i = 0; i < getNumberOfElements(); i++){
+        for (int i = 0; i < getNumberOfElements(); i++) {
             postDifferentVars(towerVars[i], foolVars[i]);
             postDifferentVars(towerVars[i], knightVars[i]);
             postDifferentVars(knightVars[i], foolVars[i]);
@@ -128,14 +137,14 @@ public class Chess {
         model.or(model.arithm(var1, "=", 0), model.arithm(var2, "=", 0)).post();
     }
 
-    private void postPresenceConstraints(){
-        for(int i = 0; i < getNumberOfElements(); i++){
+    private void postPresenceConstraints() {
+        for (int i = 0; i < getNumberOfElements(); i++) {
             // pi = (ti or fi)
             model.arithm(presenceVars[i], "=", model.or(towerVars[i], foolVars[i], knightVars[i]).reify()).post();
         }
     }
 
-    private void postSumConstraints(){
+    private void postSumConstraints() {
         postSumConstraint(towerVars, k1);
         postSumConstraint(foolVars, k2);
         postSumConstraint(knightVars, k3);
@@ -145,7 +154,7 @@ public class Chess {
         model.sum(vars, "=", sum).post();
     }
 
-    private void postDominationConstraints(){
+    private void postDominationConstraints() {
         for (int i = 0; i < getNumberOfElements(); i++) {
             List<Constraint> constraintList = new ArrayList<>();
             for (int j = 0; j < getNumberOfElements(); j++) {
@@ -163,24 +172,25 @@ public class Chess {
         }
     }
 
-    public static Constraint buildAttackedByConstraint(Model model, BoolVar[] pieceVars, boolean[][] pieceAttacks, int i, int j){
+    public static Constraint buildAttackedByConstraint(Model model, BoolVar[] pieceVars, boolean[][] pieceAttacks, int i, int j) {
         return model.and(model.arithm(pieceVars[j], "=", 1),
-                model.arithm(model.boolVar(pieceAttacks[j][i]),  "=", 1));
+                model.arithm(model.boolVar(pieceAttacks[j][i]), "=", 1));
     }
 
-    private void postIndependenceConstraints(){
+    private void postIndependenceConstraints() {
         postIndependenceConstraint(towerVars, towerAttacks);
         postIndependenceConstraint(foolVars, foolAttacks);
         postIndependenceConstraint(knightVars, knightAttacks);
     }
-    private void postIndependenceConstraint(BoolVar[] pieceVars, boolean[][] pieceAttacks){
+
+    private void postIndependenceConstraint(BoolVar[] pieceVars, boolean[][] pieceAttacks) {
         String attackOperation = "=";
         for (int i = 0; i < getNumberOfElements(); i++) {
             for (int j = 0; j < getNumberOfElements(); j++) {
                 if (i != j) {
                     model.or(model.arithm(pieceVars[i], "=", 0),
                             model.arithm(presenceVars[j], "=", 0),
-                            model.arithm(model.boolVar(pieceAttacks[i][j]),  attackOperation, 0)).post();
+                            model.arithm(model.boolVar(pieceAttacks[i][j]), attackOperation, 0)).post();
                 }
             }
         }
@@ -201,10 +211,5 @@ public class Chess {
     public int getNumberOfCols() {
         return n;
     }
-
-    public static void main(String[] args) {
-        Chess solver = new Chess(6, 4, 3, 1, false);
-    }
-
 
 }

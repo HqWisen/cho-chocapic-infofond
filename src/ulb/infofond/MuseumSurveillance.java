@@ -28,7 +28,7 @@ public class MuseumSurveillance {
     private int numberOfRows, numberOfCols;
     private Model model;
     private BoolVar[] laserVars;
-    private HashMap<Integer, IntVar> dirOfVars;
+    private Map<Integer, IntVar> dirOfVars;
     private Map<Integer, IntVar> watcherVars;
     // Directions per empty cases variables (in watcherVars) that contains a direction per element
     private Map<Integer, Integer[]> directions;
@@ -49,11 +49,7 @@ public class MuseumSurveillance {
             model.element(model.intVar(1), laserVars, watcherVars.get(i), 0).post();
         }
         postDirectionConstraints();
-
-
-        int[] coeffs = new int[laserVars.length];
-        Arrays.fill(coeffs, 0, laserVars.length, 1);
-        model.scalar(laserVars, coeffs, "=", numberOfLasersVar).post();
+        model.sum(laserVars, "=", numberOfLasersVar).post();
         Solver solver = model.getSolver();
         model.setObjective(false, numberOfLasersVar);
         System.out.println(solver.solve());
