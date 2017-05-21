@@ -27,6 +27,24 @@ public final class AttacksFactory {
         }return attacks;
     }
 
+    public static boolean[][] knightAttacks(int numberOfRows, int numberOfCols) {
+        int numberOfElements = numberOfRows * numberOfCols;
+        boolean[][] attacks = new boolean[numberOfElements][numberOfElements];
+        for(int i = 0; i < numberOfElements; i++){
+            for(int j = 0; j < numberOfElements; j++){
+                attacks[i][j] = knightAttack(i, j, numberOfCols);
+            }
+        }return attacks;
+    }
+
+    private static boolean knightAttack(int i, int j, int numberOfCols) {
+        int ir = getRow(i, numberOfCols);
+        int ic = getCol(i, numberOfCols);
+        int jr = getRow(j, numberOfCols);
+        int jc = getCol(j, numberOfCols);
+        return (Math.abs(ir - jr) == 2 && Math.abs(ic - jc) == 1) || (Math.abs(ir - jr) == 1 && Math.abs(ic -jc) == 2);
+    }
+
     private static boolean foolAttack(int i, int j, int numberOfCols) {
         int ir = getRow(i, numberOfCols);
         int ic = getCol(i, numberOfCols);
@@ -35,17 +53,6 @@ public final class AttacksFactory {
         return Math.abs(ir - jr) == Math.abs(ic - jc);
     }
 
-    /*public static boolean[][] foolAttacks(int numberofRows, int numberofCols){
-        int numberOfElements = numberofRows * numberofCols;
-        boolean[][] attacks = new boolean[numberOfElements][numberOfElements];
-        for(int i = 0; i < numberOfElements; i++){
-            for(int j = 0; j < numberOfElements; j++){
-                attacks[i][j] = towerAttack(i, j, numberofCols);
-            }
-        }
-        return attacks;
-    }
-    */
     private static boolean towerAttack(int i, int j, int numberOfCols) {
         int ir = getRow(i, numberOfCols);
         int ic = getCol(i, numberOfCols);

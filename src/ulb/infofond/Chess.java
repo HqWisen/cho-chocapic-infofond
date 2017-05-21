@@ -1,6 +1,5 @@
 package ulb.infofond;
 
-import com.sun.xml.internal.bind.v2.runtime.reflect.opt.Const;
 import jdk.nashorn.internal.runtime.regexp.joni.exception.ValueException;
 import org.chocosolver.solver.Model;
 import org.chocosolver.solver.Solver;
@@ -8,7 +7,6 @@ import org.chocosolver.solver.constraints.Constraint;
 import org.chocosolver.solver.variables.BoolVar;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -19,9 +17,9 @@ public class Chess {
     private boolean domination;
     private int n, k1, k2, k3;
     private Model model;
-    private BoolVar[] towerVars, foolVars;
+    private BoolVar[] towerVars, foolVars, knightVars;
     private BoolVar[] presenceVars;
-    private boolean[][] towerAttacks, foolAttacks;
+    private boolean[][] towerAttacks, foolAttacks, knightAttacks;
 
     public Chess(int n, int k1, int k2, int k3, boolean domination) {
         this.n = n;
@@ -33,14 +31,12 @@ public class Chess {
         this.model = new Model("Chess Problem");
         this.towerVars = model.boolVarArray(getNumberOfElements());
         this.foolVars = model.boolVarArray(getNumberOfElements());
+        this.knightVars = model.boolVarArray(getNumberOfElements());
         this.presenceVars = model.boolVarArray(getNumberOfElements());
         this.towerAttacks = AttacksFactory.towerAttacks(n, n);
         this.foolAttacks = AttacksFactory.foolAttacks(n, n);
-        postPresenceConstraints();
-        postDifferentSpot();
-        postPieceConstraints(towerVars, towerAttacks, k1);
-        postPieceConstraints(foolVars, foolAttacks, k2);
-        postDominationConstraints();
+        this.knightAttacks = AttacksFactory.knightAttacks(n, n);
+        postConstraints();
         solve();
     }
 
@@ -68,6 +64,11 @@ public class Chess {
             System.out.print(String.format("%10s",foolVars[i].getBooleanValue()));
         }
         System.out.println();
+        System.out.print("KNIGHTS:    ");
+        for(int i = 0; i < getNumberOfElements(); i++){
+            System.out.print(String.format("%10s", knightVars[i].getBooleanValue()));
+        }
+        System.out.println();
         System.out.print("PRESENCE: ");
         for(int i = 0; i < getNumberOfElements(); i++){
             System.out.print(String.format("%10s", presenceVars[i].getBooleanValue()));
@@ -82,13 +83,20 @@ public class Chess {
                 int element = getElement(i, j);
                 int tower = towerVars[element].getValue();
                 int fool = foolVars[element].getValue();
+                int knight = knightVars[element].getValue();
                 String value = "*";
                 if(tower == 1 && fool == 1){
                     throw new ValueException("Cannot have a fool and a tower on the same spot!");
+                }else if(tower == 1 && knight == 1){
+                    throw new ValueException("Cannot have a tower and a knight on the same spot!");
+                }else if(knight == 1 && fool == 1){
+                    throw new ValueException("Cannot have a fool and a knight on the same spot!");
                 }else if(tower == 1){
                     value = "T";
                 }else if(fool == 1){
                     value = "F";
+                }else if(knight == 1){
+                    value = "C";
                 }
                 System.out.print(String.format("%2s", value));
             }
@@ -96,9 +104,22 @@ public class Chess {
         }
     }
 
+    private void postConstraints(){
+        postPresenceConstraints();
+        postDifferentSpot();
+        postSumConstraints();
+        if(this.domination){
+            postDominationConstraints();
+        }else{
+            postIndependenceConstraints();
+        }
+    }
+
     private void postDifferentSpot() {
         for(int i = 0; i < getNumberOfElements(); i++){
             postDifferentVars(towerVars[i], foolVars[i]);
+            postDifferentVars(towerVars[i], knightVars[i]);
+            postDifferentVars(knightVars[i], foolVars[i]);
         }
     }
 
@@ -110,22 +131,18 @@ public class Chess {
     private void postPresenceConstraints(){
         for(int i = 0; i < getNumberOfElements(); i++){
             // pi = (ti or fi)
-            model.arithm(presenceVars[i], "=", model.or(towerVars[i], foolVars[i]).reify()).post();
+            model.arithm(presenceVars[i], "=", model.or(towerVars[i], foolVars[i], knightVars[i]).reify()).post();
         }
     }
 
-    private void postPieceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks, int sum){
-        postSumConstraints(pieceVars, sum);
-        // postIndependenceConstraints(pieceVars, pieceAttacks);
-        // postDominationConstraints(pieceVars, pieceAttacks);
+    private void postSumConstraints(){
+        postSumConstraint(towerVars, k1);
+        postSumConstraint(foolVars, k2);
+        postSumConstraint(knightVars, k3);
     }
 
-    public void postSumConstraints(BoolVar[] vars, int sum) {
+    private void postSumConstraint(BoolVar[] vars, int sum) {
         model.sum(vars, "=", sum).post();
-    }
-
-    private void postIndependenceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks){
-        postMainPieceConstraints(pieceVars, pieceAttacks);
     }
 
     private void postDominationConstraints(){
@@ -133,13 +150,10 @@ public class Chess {
             List<Constraint> constraintList = new ArrayList<>();
             for (int j = 0; j < getNumberOfElements(); j++) {
                 if (i != j) {
-                    Constraint attackedByTower = model.and(model.arithm(towerVars[j], "=", 1),
-                            model.arithm(model.boolVar(towerAttacks[j][i]),  "=", 1));
-                    Constraint attackedByFool = model.and(model.arithm(foolVars[j], "=", 1),
-                            model.arithm(model.boolVar(foolAttacks[j][i]),  "=", 1));
                     Constraint dominationPerJ = model.or(model.arithm(presenceVars[i], "=", 0),
-                            attackedByTower,
-                            attackedByFool);
+                            buildAttackedByConstraint(towerVars, towerAttacks, i, j),
+                            buildAttackedByConstraint(towerVars, towerAttacks, i, j),
+                            buildAttackedByConstraint(knightVars, knightAttacks, i, j));
                     constraintList.add(dominationPerJ);
                 }
             }
@@ -149,7 +163,17 @@ public class Chess {
         }
     }
 
-    private void postMainPieceConstraints(BoolVar[] pieceVars, boolean[][] pieceAttacks) {
+    private Constraint buildAttackedByConstraint(BoolVar[] pieceVars, boolean[][] pieceAttacks, int i, int j){
+        return model.and(model.arithm(pieceVars[j], "=", 1),
+                model.arithm(model.boolVar(pieceAttacks[j][i]),  "=", 1));
+    }
+
+    private void postIndependenceConstraints(){
+        postIndependenceConstraint(towerVars, towerAttacks);
+        postIndependenceConstraint(foolVars, foolAttacks);
+        postIndependenceConstraint(knightVars, knightAttacks);
+    }
+    private void postIndependenceConstraint(BoolVar[] pieceVars, boolean[][] pieceAttacks){
         String attackOperation = "=";
         for (int i = 0; i < getNumberOfElements(); i++) {
             for (int j = 0; j < getNumberOfElements(); j++) {
@@ -179,7 +203,7 @@ public class Chess {
     }
 
     public static void main(String[] args) {
-        Chess solver = new Chess(5, 4, 2, 1, false);
+        Chess solver = new Chess(6, 4, 3, 1, false);
     }
 
 
