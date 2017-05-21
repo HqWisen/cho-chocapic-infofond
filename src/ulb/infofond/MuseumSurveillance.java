@@ -21,7 +21,7 @@ public class MuseumSurveillance {
     private final static int NORTH = 0, SOUTH = 1, WEST = 2, EAST = 3, SELF = 4;
     private final static int[] DIROF_DOMAIN = {NORTH, SOUTH, EAST, WEST, SELF};
     static {
-        log.setLevel(Level.INFO);
+        log.setLevel(Level.OFF);
     }
 
     private Character[][] map;
@@ -59,14 +59,15 @@ public class MuseumSurveillance {
     public boolean solve(){
         boolean solved = solver.solve();
         while (solved) {
-            System.out.print("Solution #" + solver.getSolutionCount());
+            System.out.println("Solution #" + solver.getSolutionCount());
             showMap();
             /*showMapWatchers();
             showMapDirections();
             */
             solved = solver.solve();
         }
-        System.out.println("Optimal solution found (the latest solution)");
+        System.out.println("The latest solution is the optimal solution. If nothing shown," +
+                "it means that there is no solution.");
         return  solved;
     }
 

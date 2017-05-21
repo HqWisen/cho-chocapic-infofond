@@ -16,7 +16,7 @@ public class MuseumParser {
     private static final Logger log = Logger.getLogger(MuseumParser.class.getName());
 
     static{
-        log.setLevel(Level.ALL);
+        log.setLevel(Level.OFF);
     }
 
     private static Character[] parseLine(String line) {

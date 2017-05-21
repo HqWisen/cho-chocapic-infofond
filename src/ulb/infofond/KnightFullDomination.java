@@ -20,6 +20,7 @@ public class KnightFullDomination {
     private IntVar totalOfKnights;
     private boolean[][] knightAttacks;
     private int n;
+    private Solver solver;
 
     public KnightFullDomination(int n){
         this.n = n;
@@ -30,11 +31,19 @@ public class KnightFullDomination {
         postDominationConstraints();
         postTotalOfKnightsConstraint();
         model.setObjective(Model.MINIMIZE, totalOfKnights);
-        Solver solver = model.getSolver();
-        while(solver.solve()){
-            solver.showShortStatistics();
+        this.solver = model.getSolver();
+    }
+
+    private boolean solve(){
+        boolean solved = solver.solve();
+        while (solved) {
+            System.out.println("Solution #" + solver.getSolutionCount());
             showMap();
+            solved = solver.solve();
         }
+        System.out.println("The latest solution is the optimal solution. If nothing shown," +
+                "it means that there is no solution.");
+        return  solved;
     }
 
     private void showMap() {
@@ -94,6 +103,7 @@ public class KnightFullDomination {
 
     public static void main(String[] args){
         KnightFullDomination solver = new KnightFullDomination(2);
+        solver.solve();
     }
 
 
