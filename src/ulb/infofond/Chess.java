@@ -151,9 +151,9 @@ public class Chess {
             for (int j = 0; j < getNumberOfElements(); j++) {
                 if (i != j) {
                     Constraint dominationPerJ = model.or(model.arithm(presenceVars[i], "=", 0),
-                            buildAttackedByConstraint(towerVars, towerAttacks, i, j),
-                            buildAttackedByConstraint(towerVars, towerAttacks, i, j),
-                            buildAttackedByConstraint(knightVars, knightAttacks, i, j));
+                            buildAttackedByConstraint(model, towerVars, towerAttacks, i, j),
+                            buildAttackedByConstraint(model, towerVars, towerAttacks, i, j),
+                            buildAttackedByConstraint(model, knightVars, knightAttacks, i, j));
                     constraintList.add(dominationPerJ);
                 }
             }
@@ -163,7 +163,7 @@ public class Chess {
         }
     }
 
-    private Constraint buildAttackedByConstraint(BoolVar[] pieceVars, boolean[][] pieceAttacks, int i, int j){
+    public static Constraint buildAttackedByConstraint(Model model, BoolVar[] pieceVars, boolean[][] pieceAttacks, int i, int j){
         return model.and(model.arithm(pieceVars[j], "=", 1),
                 model.arithm(model.boolVar(pieceAttacks[j][i]),  "=", 1));
     }
