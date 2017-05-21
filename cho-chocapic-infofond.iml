@@ -19,6 +19,6 @@
         <SOURCES />
       </library>
     </orderEntry>
-    <orderEntry type="library" exported="" name="choco-4.0.4" level="project" />
+    <orderEntry type="library" exported="" name="choco-solver" level="project" />
   </component>
 </module>

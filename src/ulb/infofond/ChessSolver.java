@@ -53,7 +53,7 @@ public class ChessSolver {
             if (domination && independence) {
                 throw new ParseException("Cannot use both mode at the same time.");
             } else if (!domination && !independence) {
-                throw new ParseException("Choose a mode to run the Chess< solver.");
+                throw new ParseException("Choose a mode to run the Chess solver.");
             }
             n = checkOption("n", line.getOptionValue("n"));
             k1 = checkOption("t", line.getOptionValue("t"));
